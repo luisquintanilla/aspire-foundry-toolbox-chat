@@ -1,0 +1,64 @@
+.chat-container {
+    position: sticky;
+    bottom: 0;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    padding-top: 0.75rem;
+    padding-bottom: 1.5rem;
+    border-top-width: 1px;
+    background-color: #F3F4F6;
+    border-color: #E5E7EB;
+}
+
+.approval-card {
+    align-items: center;
+    background: #fff8e1;
+    border: 1px solid #d6a100;
+    border-radius: 0.75rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    margin: 0 auto 1rem;
+    max-width: 48rem;
+    padding: 1rem;
+}
+
+.approval-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.approval-details {
+    margin-top: 0.5rem;
+}
+
+.approval-details pre {
+    background: #f8fafc;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    color: #111827;
+    max-height: 12rem;
+    max-width: 36rem;
+    overflow: auto;
+    padding: 0.75rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.approval-actions button {
+    border: 0;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.6rem 1rem;
+}
+
+.approval-deny {
+    background: #e5e7eb;
+    color: #111827;
+}
+
+.approval-approve {
+    background: #166534;
+    color: white;
+}

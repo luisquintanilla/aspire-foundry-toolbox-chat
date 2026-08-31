@@ -1,0 +1,10 @@
+* text=auto eol=lf whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+
+*.gif binary
+*.ico binary
+*.jpg binary
+*.pdf binary
+*.png binary
+*.woff2 binary
+
+AspireFoundryToolboxChat.Web/wwwroot/lib/** -whitespace

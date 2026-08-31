@@ -1,0 +1,287 @@
+@page "/"
+@inject IChatClient ChatClient
+@inject LocalKnowledgeTools LocalKnowledgeTools
+@implements IDisposable
+
+<PageTitle>Chat</PageTitle>
+
+<ChatHeader OnNewChat="@ResetConversationAsync" />
+
+<ChatMessageList Messages="@messages" InProgressMessage="@currentResponseMessage">
+    <NoMessagesContent>
+        <div>To get started, try asking about these example documents. You can replace these with your own data and replace this message.</div>
+        <ChatCitation File="Example_Emergency_Survival_Kit.pdf"/>
+        <ChatCitation File="Example_GPS_Watch.md"/>
+    </NoMessagesContent>
+</ChatMessageList>
+
+@if (pendingApproval is not null)
+{
+    <section class="approval-card" aria-live="polite">
+        <div>
+            <strong>Tool approval required</strong>
+            <div><code>@GetToolName(pendingApproval)</code> wants to call the <code>research-toolbox</code> Foundry Toolbox.</div>
+            <details class="approval-details">
+                <summary>Review arguments sent to the remote tool</summary>
+                <pre>@GetToolArguments(pendingApproval)</pre>
+            </details>
+        </div>
+        <div class="approval-actions">
+            <button class="approval-deny" @onclick="() => ResolveApprovalAsync(false)">Deny</button>
+            <button class="approval-approve" @onclick="() => ResolveApprovalAsync(true)">Approve</button>
+        </div>
+    </section>
+}
+
+@if (toolboxConsentUri is not null)
+{
+    <section class="approval-card consent-card" aria-live="polite">
+        <div>
+            <strong>Toolbox consent required</strong>
+            <div>Complete OAuth consent, then send the message again.</div>
+        </div>
+        <div class="approval-actions">
+            <a class="approval-approve"
+               href="@toolboxConsentUri"
+               target="_blank"
+               rel="noopener noreferrer">Open consent</a>
+        </div>
+    </section>
+}
+
+@if (toolboxError is not null)
+{
+    <section class="approval-card error-card" aria-live="polite">
+        <div>
+            <strong>Toolbox unavailable</strong>
+            <div>@toolboxError</div>
+        </div>
+    </section>
+}
+
+<div class="chat-container">
+    <ChatSuggestions OnSelected="@AddUserMessageAsync" @ref="@chatSuggestions" />
+    <ChatInput OnSend="@AddUserMessageAsync" @ref="@chatInput" />
+</div>
+
+@code {
+    private const string SystemPrompt = @"
+        You are a hybrid research assistant.
+        Use only simple markdown to format your responses.
+
+        Use the local LoadDocuments and Search tools for questions grounded in the supplied documents.
+        Use Foundry Toolbox tools for current public information and Microsoft Learn documentation.
+        Use both sources when a question requires local context plus current or external evidence.
+        State which evidence source informed the answer.
+        Do not send local document content to a remote tool. Remote calls still require the user to review and approve their arguments.
+
+        For local document results, end your reply with citations in the special XML format:
+
+        <citation filename='string'>exact quote here</citation>
+
+        The quote must be max 5 words, taken word-for-word from the search result, and is the basis for why the citation is relevant.
+        Don't refer to the presence of citations; just emit these tags right at the end, with no surrounding text.
+        ";
+
+    private int statefulMessageCount;
+    private readonly ChatOptions chatOptions = new()
+    {
+        AllowMultipleToolCalls = false,
+    };
+    private readonly List<ChatMessage> messages = new();
+    private CancellationTokenSource? currentResponseCancellation;
+    private ChatMessage? currentResponseMessage;
+    private ChatInput? chatInput;
+    private ChatSuggestions? chatSuggestions;
+    private ToolApprovalRequestContent? pendingApproval;
+    private Uri? toolboxConsentUri;
+    private string? toolboxError;
+
+    protected override Task OnInitializedAsync()
+    {
+        statefulMessageCount = 0;
+        messages.Add(new(ChatRole.System, SystemPrompt));
+        chatOptions.Tools = [.. LocalKnowledgeTools.CreateFunctions()];
+        return Task.CompletedTask;
+    }
+
+    private async Task AddUserMessageAsync(ChatMessage userMessage)
+    {
+        _ = await TryAddUserMessageAsync(userMessage);
+    }
+
+    private async Task<bool> TryAddUserMessageAsync(ChatMessage userMessage)
+    {
+        CancelAnyCurrentResponse();
+
+        if (pendingApproval is not null)
+        {
+            toolboxError = "Resolve the pending tool approval before sending another message.";
+            return false;
+        }
+
+        // Add the user message to the conversation
+        messages.Add(userMessage);
+        chatSuggestions?.Clear();
+        await chatInput!.FocusAsync();
+        toolboxError = null;
+        toolboxConsentUri = null;
+
+        // Stream and display a new response from the IChatClient
+        var responseText = new TextContent("");
+        currentResponseMessage = new ChatMessage(ChatRole.Assistant, [responseText]);
+        currentResponseCancellation = new();
+        try
+        {
+            await foreach (var update in ChatClient.GetStreamingResponseAsync(messages.Skip(statefulMessageCount), chatOptions, currentResponseCancellation.Token))
+            {
+                messages.AddMessages(update, filter: c => c is not TextContent);
+                pendingApproval ??= update.Contents.OfType<ToolApprovalRequestContent>().FirstOrDefault();
+                AddResponseAnnotations(responseText, update);
+                responseText.Text += update.Text;
+                chatOptions.ConversationId = update.ConversationId;
+                ChatMessageItem.NotifyChanged(currentResponseMessage);
+            }
+        }
+        catch (FoundryToolboxConsentRequiredException ex)
+        {
+            if (ex.OccurredDuringDiscovery)
+            {
+                RemovePendingUserMessage(userMessage);
+            }
+
+            toolboxConsentUri = ex.ConsentUri;
+            toolboxError = null;
+            currentResponseMessage = null;
+            return !ex.OccurredDuringDiscovery;
+        }
+        catch (FoundryToolboxDiscoveryException)
+        {
+            HandleToolboxAttachmentFailure(
+                userMessage,
+                "The required Foundry Toolbox could not be reached. Check the Aspire resource state.");
+            return false;
+        }
+        catch (FoundryToolboxToolConflictException ex)
+        {
+            HandleToolboxAttachmentFailure(userMessage, ex.Message);
+            return false;
+        }
+
+        // Store the final response in the conversation, and begin getting suggestions
+        messages.Add(currentResponseMessage!);
+        statefulMessageCount = chatOptions.ConversationId is not null ? messages.Count : 0;
+        currentResponseMessage = null;
+        chatSuggestions?.Update(messages);
+        return true;
+    }
+
+    private void CancelAnyCurrentResponse()
+    {
+        // If a response was cancelled while streaming, include it in the conversation so it's not lost
+        if (currentResponseMessage is not null)
+        {
+            messages.Add(currentResponseMessage);
+        }
+
+        currentResponseCancellation?.Cancel();
+        currentResponseMessage = null;
+    }
+
+    private async Task ResetConversationAsync()
+    {
+        CancelAnyCurrentResponse();
+        messages.Clear();
+        messages.Add(new(ChatRole.System, SystemPrompt));
+        chatOptions.ConversationId = null;
+        statefulMessageCount = 0;
+        pendingApproval = null;
+        toolboxConsentUri = null;
+        toolboxError = null;
+        chatSuggestions?.Clear();
+        await chatInput!.FocusAsync();
+    }
+
+    private async Task ResolveApprovalAsync(bool approved)
+    {
+        var approval = pendingApproval;
+        if (approval is null)
+        {
+            return;
+        }
+
+        pendingApproval = null;
+        toolboxError = null;
+        var sent = await TryAddUserMessageAsync(new ChatMessage(
+            ChatRole.User,
+            [approval.CreateResponse(
+                approved,
+                approved ? "Approved by the current chat session." : "Denied by the current chat session.")]));
+        if (!sent)
+        {
+            pendingApproval = approval;
+        }
+    }
+
+    private static string GetToolName(ToolApprovalRequestContent approval) =>
+        approval.ToolCall is FunctionCallContent functionCall ? functionCall.Name : "A tool";
+
+    private static string GetToolArguments(ToolApprovalRequestContent approval) =>
+        approval.ToolCall is FunctionCallContent functionCall
+            ? System.Text.Json.JsonSerializer.Serialize(
+                functionCall.Arguments,
+                new System.Text.Json.JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                })
+            : "{}";
+
+    private static void AddResponseAnnotations(
+        TextContent responseText,
+        ChatResponseUpdate update)
+    {
+        var annotations = update.Contents
+            .SelectMany(content => content.Annotations ?? [])
+            .OfType<CitationAnnotation>()
+            .Where(annotation => annotation.Url is { IsAbsoluteUri: true })
+            .ToArray();
+
+        if (annotations.Length == 0)
+        {
+            return;
+        }
+
+        responseText.Annotations ??= [];
+        foreach (var annotation in annotations)
+        {
+            if (!responseText.Annotations
+                .OfType<CitationAnnotation>()
+                .Any(existing => existing.Url == annotation.Url))
+            {
+                responseText.Annotations.Add(annotation);
+            }
+        }
+    }
+
+    private void HandleToolboxAttachmentFailure(
+        ChatMessage userMessage,
+        string message)
+    {
+        RemovePendingUserMessage(userMessage);
+        toolboxConsentUri = null;
+        toolboxError = message;
+        currentResponseMessage = null;
+    }
+
+    private void RemovePendingUserMessage(ChatMessage userMessage)
+    {
+        if (messages.Count > 0 &&
+            ReferenceEquals(messages[^1], userMessage))
+        {
+            messages.RemoveAt(messages.Count - 1);
+        }
+    }
+
+    public void Dispose()
+        => currentResponseCancellation?.Cancel();
+}

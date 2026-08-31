@@ -1,0 +1,26 @@
+{
+  "name": "Aspire Foundry Toolbox Chat",
+  "image": "mcr.microsoft.com/devcontainers/dotnet:dev-10.0-noble@sha256:2608ea7f0b23a099b0ad3c817aede5e3352eeb249cc23525f1239578b521e69e",
+  "features": {
+    "ghcr.io/microsoft/aspire-devcontainer-feature/aspire:2": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/azure-cli:1": {}
+  },
+  "hostRequirements": {
+    "cpus": 8,
+    "memory": "32gb",
+    "storage": "64gb"
+  },
+  "postCreateCommand": "dotnet restore AspireFoundryToolboxChat.sln",
+  "postStartCommand": "dotnet dev-certs https --trust",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csdevkit",
+        "microsoft-aspire.aspire-vscode",
+        "ms-azuretools.vscode-containers",
+        "ms-vscode.azurecli"
+      ]
+    }
+  }
+}

@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200"
+     height="650"
+     viewBox="0 0 1200 650"
+     role="img"
+     aria-labelledby="title desc">
+  <title id="title">Existing and managed Aspire resource modes</title>
+  <desc id="desc">The default existing mode uses external connections and performs no Azure writes. Managed mode requires two explicit settings and can provision Foundry resources and reconcile an Aspire-owned Toolbox.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" class="arrow-fill"/>
+    </marker>
+    <style>
+      :root { color-scheme: light dark; }
+      .background { fill: #f8fafc; }
+      .safe-panel { fill: #f0fdf4; stroke: #15803d; stroke-width: 3; }
+      .managed-panel { fill: #fffbeb; stroke: #b45309; stroke-width: 3; }
+      .box { fill: #ffffff; stroke: #64748b; stroke-width: 2; }
+      .gate { fill: #fff7ed; stroke: #c2410c; stroke-width: 2; }
+      .result-safe { fill: #dcfce7; stroke: #15803d; stroke-width: 2; }
+      .result-managed { fill: #fef3c7; stroke: #b45309; stroke-width: 2; }
+      .line { stroke: #475569; stroke-width: 2; marker-end: url(#arrow); }
+      .arrow-fill { fill: #475569; }
+      .title { fill: #0f172a; font: 700 28px Arial, sans-serif; }
+      .heading { fill: #0f172a; font: 700 21px Arial, sans-serif; text-anchor: middle; }
+      .label { fill: #0f172a; font: 600 16px Arial, sans-serif; text-anchor: middle; }
+      .small { fill: #334155; font: 14px Arial, sans-serif; text-anchor: middle; }
+      .badge { fill: #ffffff; font: 700 13px Arial, sans-serif; text-anchor: middle; dominant-baseline: middle; }
+      .safe-badge { fill: #15803d; }
+      .warning-badge { fill: #b45309; }
+      @media (prefers-color-scheme: dark) {
+        .background { fill: #0f172a; }
+        .safe-panel { fill: #052e16; stroke: #4ade80; }
+        .managed-panel { fill: #451a03; stroke: #fbbf24; }
+        .box { fill: #111827; stroke: #94a3b8; }
+        .gate { fill: #431407; stroke: #fb923c; }
+        .result-safe { fill: #14532d; stroke: #4ade80; }
+        .result-managed { fill: #78350f; stroke: #fbbf24; }
+        .line { stroke: #cbd5e1; }
+        .arrow-fill { fill: #cbd5e1; }
+        .title, .heading, .label { fill: #f8fafc; }
+        .small { fill: #cbd5e1; }
+        .safe-badge { fill: #16a34a; }
+        .warning-badge { fill: #d97706; }
+      }
+    </style>
+  </defs>
+
+  <rect class="background" width="1200" height="650"/>
+  <text class="title" x="42" y="48">Resource modes</text>
+
+  <rect class="safe-panel" x="40" y="80" width="535" height="525" rx="18"/>
+  <circle class="safe-badge" cx="85" cy="120" r="22"/>
+  <text class="badge" x="85" y="120">SAFE</text>
+  <text class="heading" x="310" y="126">Existing mode (default)</text>
+
+  <rect class="box" x="105" y="165" width="405" height="82" rx="12"/>
+  <text class="label" x="307" y="196">Local parameters</text>
+  <text class="small" x="307" y="220">Project endpoint, Toolbox name, deployments</text>
+
+  <line class="line" x1="307" y1="247" x2="307" y2="286"/>
+
+  <rect class="box" x="105" y="290" width="405" height="90" rx="12"/>
+  <text class="label" x="307" y="322">External connection resources</text>
+  <text class="small" x="307" y="346">foundry-project + research-toolbox</text>
+  <text class="small" x="307" y="366">Passed to the Web process</text>
+
+  <line class="line" x1="307" y1="380" x2="307" y2="419"/>
+
+  <rect class="result-safe" x="105" y="423" width="405" height="125" rx="12"/>
+  <text class="label" x="307" y="455">No mutation boundary</text>
+  <text class="small" x="307" y="482">No ARM deployment</text>
+  <text class="small" x="307" y="505">No role assignment</text>
+  <text class="small" x="307" y="528">No Toolbox version reconciliation</text>
+
+  <rect class="managed-panel" x="625" y="80" width="535" height="525" rx="18"/>
+  <circle class="warning-badge" cx="670" cy="120" r="22"/>
+  <text class="badge" x="670" y="120">!</text>
+  <text class="heading" x="895" y="126">Managed mode (explicit)</text>
+
+  <rect class="gate" x="690" y="165" width="405" height="105" rx="12"/>
+  <text class="label" x="892" y="194">Two-part safety gate</text>
+  <text class="small" x="892" y="219">Mode = managed</text>
+  <text class="small" x="892" y="244">AllowResourceChanges = true</text>
+
+  <line class="line" x1="892" y1="270" x2="892" y2="309"/>
+
+  <rect class="box" x="690" y="313" width="405" height="92" rx="12"/>
+  <text class="label" x="892" y="345">Typed Aspire hierarchy</text>
+  <text class="small" x="892" y="370">Foundry -> project -> model + Toolbox</text>
+  <text class="small" x="892" y="390">Reconciliation requires ownership metadata</text>
+
+  <line class="line" x1="892" y1="405" x2="892" y2="444"/>
+
+  <rect class="result-managed" x="690" y="448" width="405" height="100" rx="12"/>
+  <text class="label" x="892" y="478">Cloud changes are possible</text>
+  <text class="small" x="892" y="503">Provisioning, versions, promotion, cost</text>
+  <text class="small" x="892" y="526">Review plan and tenant policy first</text>
+
+  <text class="small" x="600" y="628">The mode changes AppHost control-plane behavior, not the application runtime contract.</text>
+</svg>

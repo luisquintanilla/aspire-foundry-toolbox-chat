@@ -3,7 +3,7 @@
   "image": "mcr.microsoft.com/devcontainers/dotnet:dev-10.0-noble@sha256:2608ea7f0b23a099b0ad3c817aede5e3352eeb249cc23525f1239578b521e69e",
   "features": {
     "ghcr.io/microsoft/aspire-devcontainer-feature/aspire:2": {},
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:4": {},
     "ghcr.io/devcontainers/features/azure-cli:1": {}
   },
   "hostRequirements": {
